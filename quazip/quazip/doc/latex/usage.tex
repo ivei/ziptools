@@ -1,0 +1,37 @@
+This page provides general information on Qua\+Z\+IP usage. See classes Qua\+Zip and Qua\+Zip\+File for the detailed documentation on what can Qua\+Z\+IP do and what it can not. Also, reading comments in the zip.\+h and unzip.\+h files (taken from the original Z\+I\+P/\+U\+N\+Z\+IP package) is always a good idea too. After all, Qua\+Z\+IP is just a wrapper with a few convenience extensions and reimplementations.
+
+Qua\+Zip is a class representing Z\+IP archive, Qua\+Zip\+File represents a file inside archive and subclasses Q\+I\+O\+Device as well. One limitation is that there can be only one instance of Qua\+Zip\+File per Qua\+Zip instance, which kind of makes it confusing why there are two classes instead of one. This is actually no more than an A\+PI design mistake kept for backwards compatibility.
+
+The Jl\+Compress class provides some high-\/level convenience static methods which may be very useful if all you need is just to “unzip a file” or something like that.\hypertarget{usage_terminology}{}\doxysection{Terminology}\label{usage_terminology}
+“\+Qua\+Z\+I\+P” means the whole library, while “\+Qua\+Zip” (note the lower case) is just one class in it.
+
+“\+Z\+I\+P/\+U\+N\+Z\+IP A\+P\+I” or “\+Minizip” means the original A\+PI of the Gilles Vollant\textquotesingle{}s Z\+I\+P/\+U\+N\+Z\+IP package. It was slightly modified to better integrate with Qt. These modifications are not source or binary compatible with the official Minizip release, which means you can\textquotesingle{}t just drop the newer Minizip version into Qua\+Z\+IP sources and make it work.
+
+“\+Z\+I\+P”, “\+Z\+IP archive” or “\+Z\+IP file” means any Z\+IP archive. Typically this is a plain file with “.\+zip” (or “.\+Z\+I\+P”) file name suffix, but it can also be any seekable Q\+I\+O\+Device (say, Q\+Buffer, but not Q\+Tcp\+Socket).
+
+“A file inside archive”, “a file inside Z\+I\+P” or something like that means file either being read or written from/to some Z\+IP archive.\hypertarget{usage_general-usage}{}\doxysection{General usage}\label{usage_general-usage}
+In general, the process looks like this\+:
+
+
+\begin{DoxyEnumerate}
+\item Open or create an archive with a Qua\+Zip instance.
+\item Open or create a file in the archive with a Qua\+Zip\+File instance.
+\item Perform reading or writing.
+\item Close the Qua\+Zip\+File instance.
+\item Repeat steps 2–4 for other files if needed.
+\item Close the Qua\+Z\+IP instance.
+\end{DoxyEnumerate}
+
+See the “qztest” subdirectory for examples. Test\+Qua\+Zip\+File\+::zip\+Unzip() is a good place to start.\hypertarget{usage_error-handling}{}\doxysection{Error handling}\label{usage_error-handling}
+Almost any call to Z\+I\+P/\+U\+N\+Z\+IP A\+PI return some error code. Most of the original A\+PI\textquotesingle{}s error checking could be done in this wrapper as well, but it would cause unnecessary code bloating without any benefit. So, Qua\+Z\+IP only checks for situations that Z\+I\+P/\+U\+N\+Z\+IP A\+PI can not check for. For example, Z\+I\+P/\+U\+N\+Z\+IP A\+PI has no “\+Z\+IP open mode” concept because read and write modes are completely separated. On the other hand, to avoid creating classes like “\+Qua\+Zip\+Reader”, “\+Qua\+Zip\+Writer” or something like that, Qua\+Z\+IP introduces “\+Z\+IP open mode” concept instead, thus making it possible to use one class (Qua\+Zip) for both reading and writing. But this leads to additional open mode checks which are not done in Z\+I\+P/\+U\+N\+Z\+IP package.
+
+Therefore, error checking is two-\/level (Qua\+Z\+IP\textquotesingle{}s level and Z\+I\+P/\+U\+N\+Z\+IP A\+PI level), which sometimes can be confusing, so here are some advices on how the error checking should be properly done\+:
+
+
+\begin{DoxyItemize}
+\item Both Qua\+Zip and Qua\+Zip\+File have get\+Zip\+Error() function, which return error code of the last Z\+I\+P/\+U\+N\+Z\+IP A\+PI call. Most function calls reset error code to U\+N\+Z\+\_\+\+OK on success and set error code on failure. Some functions do not reset error code. Most of them are {\ttfamily const} and do not access Z\+IP archive in any way. Some, on the other hand, {\itshape do} access Z\+IP archive, but do not reset or set error code. For example, Qua\+Zip\+File\+::pos() function. Such functions are explicitly marked in the documentation.
+\item Most functions have their own way to report errors, by returning a null string, negative value or {\ttfamily false}. If such a function returns error value, call get\+Zip\+Error() to get more information about error. See “zip.\+h” and “unzip.\+h” of the Z\+I\+P/\+U\+N\+Z\+IP package for error codes.
+\item If the function returns error-\/stating value (like {\ttfamily false}), but get\+Zip\+Error() returns U\+N\+Z\+\_\+\+OK, it means that you did something obviously wrong. For example, tried to write in the archive open for reading or not open at all. You better just not do that! Most functions also issue a warning using q\+Warning() function in such cases. See documentation for a specific function for details on when it should not be called.
+\end{DoxyItemize}
+
+I know that this is somewhat messy, but I could not find a better way to do all the error handling. 
